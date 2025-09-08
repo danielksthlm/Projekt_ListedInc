@@ -192,3 +192,142 @@ BEGIN
    WHERE directory_id=did AND is_deleted=FALSE
      AND NOT (name = ANY(present_names)) AND is_current=TRUE;
 END; $$ LANGUAGE plpgsql;
+
+-- =========================
+-- Metadata-kolumner för document (idempotent)
+-- =========================
+ALTER TABLE document ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ;
+ALTER TABLE document ADD COLUMN IF NOT EXISTS headings JSONB;
+ALTER TABLE document ADD COLUMN IF NOT EXISTS contacts JSONB;
+ALTER TABLE document ADD COLUMN IF NOT EXISTS tags JSONB;
+ALTER TABLE document ADD COLUMN IF NOT EXISTS checksum_sha256 TEXT;
+
+-- Unikt per källa+innehåll (hindrar dubbletter av samma dokumentversion)
+CREATE UNIQUE INDEX IF NOT EXISTS ux_document_source_checksum
+  ON document (source_id, checksum_sha256);
+
+-- Unikt på URL oavsett case
+CREATE UNIQUE INDEX IF NOT EXISTS ux_source_url
+  ON source ((lower(url)));
+
+-- =========================
+-- Kontakt-tabell + vy + sync-funktioner
+-- =========================
+-- Fristående tabell för kuraterade/normaliserade kontakter
+CREATE TABLE IF NOT EXISTS contact_info (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  document_id   UUID NOT NULL REFERENCES document(id) ON DELETE CASCADE,
+  name          TEXT,
+  role          TEXT,
+  email         TEXT,
+  phone_raw     TEXT,
+  phone_digits  TEXT GENERATED ALWAYS AS (regexp_replace(COALESCE(phone_raw,'') , '\\D', '', 'g')) STORED,
+  source        TEXT,  -- 'html','pdf','inferred'
+  created_at    TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (document_id, COALESCE(email,''), COALESCE(phone_digits,''))
+);
+
+-- Sökindex
+CREATE INDEX IF NOT EXISTS ix_contact_info_document_id ON contact_info(document_id);
+CREATE INDEX IF NOT EXISTS ix_contact_info_email_lower ON contact_info((lower(email)));
+CREATE INDEX IF NOT EXISTS ix_contact_info_phone_digits ON contact_info(phone_digits);
+
+-- Vy som plattar ut JSON-kontakter i document till rader (read-only)
+CREATE OR REPLACE VIEW contact_info_extracted AS
+WITH base AS (
+  SELECT d.id AS document_id, d.contacts
+  FROM document d
+  WHERE d.contacts IS NOT NULL AND jsonb_typeof(d.contacts) = 'object'
+)
+-- people
+SELECT
+  b.document_id,
+  (p->>'name')::TEXT      AS name,
+  (p->>'role')::TEXT      AS role,
+  (p->>'email')::TEXT     AS email,
+  NULL::TEXT              AS phone_raw,
+  regexp_replace(COALESCE((p->>'phone')::TEXT,''),'\\D','','g') AS phone_digits,
+  'people'::TEXT          AS source
+FROM base b
+CROSS JOIN LATERAL jsonb_path_query(b.contacts, '$.people[*]') AS p
+UNION ALL
+-- emails
+SELECT
+  b.document_id,
+  NULL::TEXT,
+  NULL::TEXT,
+  e::TEXT AS email,
+  NULL::TEXT,
+  NULL::TEXT,
+  'emails'::TEXT
+FROM base b
+CROSS JOIN LATERAL jsonb_path_query_array(b.contacts, '$.emails') AS e
+UNION ALL
+-- phones
+SELECT
+  b.document_id,
+  NULL::TEXT,
+  NULL::TEXT,
+  NULL::TEXT,
+  ph::TEXT AS phone_raw,
+  regexp_replace(COALESCE(ph::TEXT,''),'\\D','','g') AS phone_digits,
+  'phones'::TEXT
+FROM base b
+CROSS JOIN LATERAL jsonb_path_query_array(b.contacts, '$.phones') AS ph;
+
+-- Funktion: synka contact_info från document.contacts för ett dokument
+CREATE OR REPLACE FUNCTION sync_contact_info_from_document(p_document_id UUID)
+RETURNS VOID AS $$
+BEGIN
+  -- Ta bort tidigare rader för dokumentet (vi genererar på nytt)
+  DELETE FROM contact_info WHERE document_id = p_document_id;
+
+  -- people
+  INSERT INTO contact_info (document_id, name, role, email, phone_raw, source)
+  SELECT
+    d.id,
+    (p->>'name')::TEXT,
+    (p->>'role')::TEXT,
+    (p->>'email')::TEXT,
+    NULL::TEXT,
+    'people'
+  FROM document d
+  CROSS JOIN LATERAL jsonb_path_query(d.contacts, '$.people[*]') AS p
+  WHERE d.id = p_document_id
+    AND d.contacts IS NOT NULL
+    AND jsonb_typeof(d.contacts) = 'object';
+
+  -- emails
+  INSERT INTO contact_info (document_id, email, source)
+  SELECT d.id, e::TEXT, 'emails'
+  FROM document d
+  CROSS JOIN LATERAL jsonb_path_query_array(d.contacts, '$.emails') AS e
+  WHERE d.id = p_document_id
+    AND d.contacts IS NOT NULL
+    AND jsonb_typeof(d.contacts) = 'object'
+    AND (e::TEXT) IS NOT NULL
+  ON CONFLICT (document_id, COALESCE(email,''), COALESCE(phone_digits,'')) DO NOTHING;
+
+  -- phones
+  INSERT INTO contact_info (document_id, phone_raw, source)
+  SELECT d.id, ph::TEXT, 'phones'
+  FROM document d
+  CROSS JOIN LATERAL jsonb_path_query_array(d.contacts, '$.phones') AS ph
+  WHERE d.id = p_document_id
+    AND d.contacts IS NOT NULL
+    AND jsonb_typeof(d.contacts) = 'object'
+    AND (ph::TEXT) IS NOT NULL
+  ON CONFLICT (document_id, COALESCE(email,''), COALESCE(phone_digits,'')) DO NOTHING;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Funktion: synka alla dokument
+CREATE OR REPLACE FUNCTION sync_all_contact_info()
+RETURNS VOID AS $$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN SELECT id FROM document LOOP
+    PERFORM sync_contact_info_from_document(r.id);
+  END LOOP;
+END;
+$$ LANGUAGE plpgsql;

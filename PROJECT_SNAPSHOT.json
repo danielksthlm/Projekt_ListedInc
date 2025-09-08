@@ -1,5 +1,5 @@
 {
-  "generated_at": "2025-09-08T09:21:39.380617Z",
+  "generated_at": "2025-09-08T13:34:13.960493Z",
   "root": "/Users/danielkallberg/Documents/KLR_AI/Projekt_ListedInc",
   "python": "3.13.7",
   "python_path": "/opt/homebrew/opt/python@3.13/bin/python3.13",
@@ -20,12 +20,15 @@
     "schema.sql": true
   },
   "git": {
-    "branch": null,
-    "commit": null,
-    "short": null,
-    "status": null
+    "branch": "main",
+    "commit": "8a9ca6de59e84ef5757f983061c4e709aa932fed",
+    "short": "8a9ca6d",
+    "status": "A  .github/workflows/ci.yml\nM  Makefile\nM  PROJECT_SNAPSHOT.json\nM  PROJECT_SNAPSHOT.md\nM  README.md\nA  db/clear_data.sql\n M db/schema.sql\nAM src/listedinc/crawl_site.py\nA  src/listedinc/ingest_list.py\nMM src/listedinc/ingest_url.py"
   },
   "tree": [
+    ".github/",
+    ".github/workflows/",
+    ".github/workflows/ci.yml",
     ".pytest_cache/",
     ".pytest_cache/v/",
     ".pytest_cache/v/cache/",
@@ -41,12 +44,15 @@
     ".ruff_cache/.gitignore",
     ".ruff_cache/CACHEDIR.TAG",
     "db/",
+    "db/clear_data.sql",
     "db/schema.sql",
     "docs/",
     "src/",
     "src/listedinc/",
     "src/listedinc/__init__.py",
+    "src/listedinc/crawl_site.py",
     "src/listedinc/db_test.py",
+    "src/listedinc/ingest_list.py",
     "src/listedinc/ingest_url.py",
     "src/listedinc/inventory_scan.py",
     "src/projekt_listedinc.egg-info/",

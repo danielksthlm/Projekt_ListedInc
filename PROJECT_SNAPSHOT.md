@@ -1,6 +1,6 @@
 # PROJECT_SNAPSHOT – Projekt_ListedInc
 
-Genererad: 2025-09-08T09:21:39.380617Z
+Genererad: 2025-09-08T13:34:13.960493Z
 
 ## Projekt
 
@@ -27,8 +27,9 @@ Genererad: 2025-09-08T09:21:39.380617Z
 
 ## Git
 
-- Branch: `None`
-- Commit: `None`
+- Branch: `main`
+- Commit: `8a9ca6d`
+- Ocommittade ändringar finns
 
 ## Python/Env
 
@@ -38,6 +39,9 @@ Genererad: 2025-09-08T09:21:39.380617Z
 
 ## Katalogstruktur (kort)
 
+- .github/
+- .github/workflows/
+- .github/workflows/ci.yml
 - .pytest_cache/
 - .pytest_cache/v/
 - .pytest_cache/v/cache/
@@ -53,12 +57,15 @@ Genererad: 2025-09-08T09:21:39.380617Z
 - .ruff_cache/.gitignore
 - .ruff_cache/CACHEDIR.TAG
 - db/
+- db/clear_data.sql
 - db/schema.sql
 - docs/
 - src/
 - src/listedinc/
 - src/listedinc/__init__.py
+- src/listedinc/crawl_site.py
 - src/listedinc/db_test.py
+- src/listedinc/ingest_list.py
 - src/listedinc/ingest_url.py
 - src/listedinc/inventory_scan.py
 - src/projekt_listedinc.egg-info/

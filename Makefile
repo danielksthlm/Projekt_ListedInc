@@ -1,4 +1,4 @@
-.PHONY: env dev schema ingest scan test lint fmt lint-fix db-start db-stop db-restart db-status db-logs db-help
+.PHONY: env dev schema ingest ingest-list crawl snapshot scan test lint fmt lint-fix db-start db-stop db-restart db-status db-logs db-psql db-truncate-data db-help
 
 PY := . .venv/bin/activate && python
 PIP := . .venv/bin/activate && pip
@@ -16,7 +16,10 @@ schema:
 	psql -d listedinc -f db/schema.sql
 
 ingest:
-	. .venv/bin/activate && PYTHONPATH=src python -m listedinc.ingest_url --url "$(URL)" $(if $(INSECURE),--insecure,) $(if $(CA_BUNDLE),--ca-bundle "$(CA_BUNDLE)",)
+	. .venv/bin/activate && PYTHONPATH=src python -m listedinc.ingest_url --url "$(URL)" $(if $(INSECURE),--insecure,) $(if $(CA_BUNDLE),--ca-bundle "$(CA_BUNDLE)",) $(if $(PDF_TO_DB),--pdf-to-db,)
+
+ingest-list:
+	. .venv/bin/activate && PYTHONPATH=src python -m listedinc.ingest_list --file "$(FILE)" $(if $(INSECURE),--insecure,) $(if $(CA_BUNDLE),--ca-bundle "$(CA_BUNDLE)",) $(if $(PDF_TO_DB),--pdf-to-db,)
 
 scan:
 	. .venv/bin/activate && PYTHONPATH=src python -m listedinc.inventory_scan
@@ -39,7 +42,7 @@ lint-fix:
 # -------------------------
 # Override with: make db-start PG_SERVICE=postgresql@15
 DB ?= listedinc
-PG_SERVICE ?= postgresql@16
+PG_SERVICE ?= postgresql@14
 
 # Start PostgreSQL via Homebrew services
 db-start:
@@ -70,6 +73,20 @@ db-logs:
 	@command -v brew >/dev/null || { echo "Homebrew saknas."; exit 1; }
 	@brew services log $(PG_SERVICE) || echo "Tips: kontrollera även Console.app eller /usr/local/var/log/postgres*"
 
+# Öppna psql mot aktuell DB
+db-psql:
+	psql -d $(DB)
+
+# Rensa all data i projektets tabeller (destruktivt)
+db-truncate-data:
+	@read -p "⚠️  Detta raderar ALL data i databasen '$(DB)'s ListedInc-tabeller. Fortsätt? (yes/NO) " ans; \
+	if [ "$$ans" = "yes" ]; then \
+	  psql -d $(DB) -f db/clear_data.sql; \
+	  echo "✔️  Klart: all data rensad"; \
+	else \
+	  echo "Avbrutet."; \
+	fi
+
 # Hjälp
 db-help:
 	@echo "Postgres-mål:";
@@ -79,6 +96,15 @@ db-help:
 	@echo "  make db-status     # visa status";
 	@echo "  make db-logs       # visa loggar";
 	@echo "  Variabler: DB=$(DB), PG_SERVICE=$(PG_SERVICE) (override: make db-start PG_SERVICE=postgresql@15)";
+
+crawl:
+	@echo "[crawl] URL=$(URL) MAX_PAGES=$(MAX_PAGES) MAX_DEPTH=$(MAX_DEPTH) PDF_TO_DB=$(PDF_TO_DB) INSECURE=$(INSECURE) USE_SITEMAP=$(USE_SITEMAP) VERBOSE=$(VERBOSE) ALLOW_EXTERNAL=$(ALLOW_EXTERNAL) AUTO_SEED=$(AUTO_SEED) SEED_IGNORE_FILTERS=$(SEED_IGNORE_FILTERS) INCLUDE=$(INCLUDE) EXCLUDE=$(EXCLUDE)"
+	. .venv/bin/activate && PYTHONPATH=src python -m listedinc.crawl_site --url "$(URL)" \
+	$(if $(INSECURE),--insecure,) $(if $(CA_BUNDLE),--ca-bundle "$(CA_BUNDLE)",) $(if $(PDF_TO_DB),--pdf-to-db,) \
+	$(if $(MAX_PAGES),--max-pages $(MAX_PAGES),) $(if $(MAX_DEPTH),--max-depth $(MAX_DEPTH),) $(if $(SLEEP),--sleep $(SLEEP),) \
+	$(if $(USE_SITEMAP),--use-sitemap,) $(if $(VERBOSE),--verbose,) $(if $(ALLOW_EXTERNAL),--allow-external,) \
+	$(if $(AUTO_SEED),--auto-seed,) $(if $(SEED_IGNORE_FILTERS),--seed-ignore-filters,) \
+	$(foreach pat,$(INCLUDE),--include "$(pat)" ) $(foreach pat,$(EXCLUDE),--exclude "$(pat)" )
 
 snapshot:
 	. .venv/bin/activate && python PROJECT_SNAPSHOT.py --show-make --services --max-depth 3
