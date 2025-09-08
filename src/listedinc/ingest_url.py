@@ -360,7 +360,11 @@ def _parse_pdf_datetime(pdf_dt: str):
         if not m:
             return None
         y, mo, d, hh, mm, ss = m.groups()
-        mo = mo or '01'; d = d or '01'; hh = hh or '00'; mm = mm or '00'; ss = ss or '00'
+        mo = mo or '01'
+        d = d or '01'
+        hh = hh or '00'
+        mm = mm or '00'
+        ss = ss or '00'
         iso = f"{y}-{mo}-{d} {hh}:{mm}:{ss}"
         return dateparser.parse(iso, settings={"RETURN_AS_TIMEZONE_AWARE": True})
     except Exception:
