@@ -195,7 +195,7 @@ def brew_services_info() -> dict:
     if not shutil.which("brew"):
         return {"ok": False, "error": "brew not found"}
     info = run(["brew", "services", "list"]) or ""
-    lines = [l for l in info.splitlines() if "postgres" in l or "postgresql" in l]
+    lines = [line for line in info.splitlines() if "postgres" in line or "postgresql" in line]
     return {"ok": True, "list": lines}
 
 

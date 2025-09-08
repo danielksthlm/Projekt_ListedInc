@@ -3,13 +3,13 @@ import os
 import re
 import sys
 import time
-import itertools
 import urllib.robotparser as robotparser
 from urllib.parse import urljoin, urlparse, urlunparse
 
 import httpx
 from bs4 import BeautifulSoup
 import xml.etree.ElementTree as ET
+from typing import Optional
 
 from listedinc.ingest_url import ingest_one
 
@@ -40,7 +40,6 @@ def toggle_www(u: str) -> str:
     return "https://" + new_host
 
 
-from typing import Optional
 
 def normalize_url(u: str, base: str | None = None) -> Optional[str]:
     """Resolve relative URL, drop fragments, normalise scheme/host, trim trailing slash (except root).
@@ -64,11 +63,15 @@ def normalize_url(u: str, base: str | None = None) -> Optional[str]:
 
 
 def unique_preserve(seq):
-    seen = set(); out = []
+    seen = set()
+    out = []
     for x in seq:
-        if not x: continue
-        if x in seen: continue
-        seen.add(x); out.append(x)
+        if not x:
+            continue
+        if x in seen:
+            continue
+        seen.add(x)
+        out.append(x)
     return out
 
 
@@ -102,9 +105,6 @@ def fetch_sitemap(start_url: str, verify, timeout=15):
                 root = ET.fromstring(r.content)
             except Exception:
                 return []
-            ns = {
-                'sm': 'http://www.sitemaps.org/schemas/sitemap/0.9'
-            }
             urls = []
             # urlset/loc
             for loc in root.findall('.//{http://www.sitemaps.org/schemas/sitemap/0.9}loc'):
@@ -166,7 +166,6 @@ IR_HOST_RE = re.compile(r"^(invest(or|ors)?|ir|financial|finance|reports?|news|p
 def discover_ir_hosts(start_url: str, verify, timeout=10) -> list[str]:
     """Heuristiskt: hämta startsida + sitemap, samla länkar, plocka värdar som ser ut som IR-domäner.
     Returnerar lista med bas-URL:er (https://host/)."""
-    uniq = set()
     try:
         status, ctype, body = fetch_bytes(start_url, verify, timeout=timeout, retries=1)
     except Exception:
@@ -303,7 +302,8 @@ def main():
 
     dsn = os.getenv("DATABASE_URL")
     if not dsn:
-        print("Error: DATABASE_URL saknas", file=sys.stderr); sys.exit(1)
+        print("Error: DATABASE_URL saknas", file=sys.stderr)
+        sys.exit(1)
 
     if args.insecure:
         verify = False
@@ -345,7 +345,8 @@ def main():
     start = ensure_scheme(start)
     start = normalize_url(start)
     if not start:
-        print("[FAIL] Ogiltig start-URL (icke-http)", file=sys.stderr); sys.exit(1)
+        print("[FAIL] Ogiltig start-URL (icke-http)", file=sys.stderr)
+        sys.exit(1)
 
     # Auto-redirect to investor.<domain> if starting from main site and investor is reachable
     try:

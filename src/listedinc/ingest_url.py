@@ -4,7 +4,6 @@ import sys
 import hashlib
 import httpx
 import psycopg
-import datetime as dt
 import json
 import re
 from bs4 import BeautifulSoup

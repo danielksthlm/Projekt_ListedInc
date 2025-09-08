@@ -1,6 +1,8 @@
-import argparse, csv, os, sys
+import argparse
+import csv
+import os
+import sys
 from pathlib import Path
-import psycopg
 
 from listedinc.ingest_url import ingest_one
 
@@ -14,7 +16,8 @@ def main():
 
     dsn = os.getenv("DATABASE_URL")
     if not dsn:
-        print("Error: DATABASE_URL saknas", file=sys.stderr); sys.exit(1)
+        print("Error: DATABASE_URL saknas", file=sys.stderr)
+        sys.exit(1)
 
     if args.insecure:
         verify = False
@@ -25,7 +28,8 @@ def main():
 
     p = Path(args.file)
     if not p.exists():
-        print(f"File not found: {p}", file=sys.stderr); sys.exit(1)
+        print(f"File not found: {p}", file=sys.stderr)
+        sys.exit(1)
 
     total = ok = 0
     with p.open("r", encoding="utf-8") as f:
@@ -37,14 +41,18 @@ def main():
                 url_idx = [i for i,h in enumerate(header) if h.lower()=="url"][0]
             else:
                 # ingen header -> behandla första raden som data
-                f.seek(0); reader = csv.reader(f); url_idx = 0
+                f.seek(0)
+                reader = csv.reader(f)
+                url_idx = 0
         except Exception:
             url_idx = 0
 
         for row in reader:
-            if not row or len(row) <= url_idx: continue
+            if not row or len(row) <= url_idx:
+                continue
             url = row[url_idx].strip()
-            if not url: continue
+            if not url:
+                continue
             total += 1
             try:
                 sid, did, status, checksum = ingest_one(dsn, url, verify, pdf_to_db=args.pdf_to_db)
