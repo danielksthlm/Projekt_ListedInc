@@ -193,8 +193,8 @@ def discover_ir_hosts(start_url: str, verify, timeout=10) -> list[str]:
             continue
         if IR_HOST_RE.search(h):
             candidates.append(h)
-    # Håll även koll på investor.<base_host> och ir.<base_host>
-    for prefix in ("investor.", "ir.", "financial."):
+    # Håll även koll på investor.<base_host>, corporate.<base_host>, ir.<base_host> och financial.<base_host>
+    for prefix in ("investor.", "corporate.", "ir.", "financial."):
         candidates.append(prefix + base_host)
     out = []
     for h in unique_preserve(candidates):
@@ -208,7 +208,8 @@ def discover_ir_hosts(start_url: str, verify, timeout=10) -> list[str]:
     return unique_preserve(out)
 
 def guess_investor_subdomain(start_url: str, verify, timeout=10):
-    """Return an investor.* start URL if reachable (status < 400), else None.
+    """Return a likely IR subdomain URL if reachable (status < 400).
+    Tries, in order: investor., corporate., ir., financial.
     Examples: https://company.se -> https://investor.company.se/
     """
     try:
@@ -219,10 +220,12 @@ def guess_investor_subdomain(start_url: str, verify, timeout=10):
         # strip www.
         if host.startswith("www."):
             host = host[4:]
-        inv = f"{p.scheme or 'https'}://investor.{host}/"
-        status, ctype, body = fetch_bytes(inv, verify, timeout=timeout, retries=1)
-        if status and status < 400:
-            return inv
+        prefixes = ("investor.", "corporate.", "ir.", "financial.")
+        for pref in prefixes:
+            candidate = f"{p.scheme or 'https'}://{pref}{host}/"
+            status, ctype, body = fetch_bytes(candidate, verify, timeout=timeout, retries=1)
+            if status and status < 400:
+                return candidate
     except Exception:
         return None
     return None
