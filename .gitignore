@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.coverage
+.pytest_cache/
+
+# venv & IDE
+.venv/
+.env
+.envrc
+.DS_Store
+.vscode/
+
+# Projekt_ListedInc data
+data/
