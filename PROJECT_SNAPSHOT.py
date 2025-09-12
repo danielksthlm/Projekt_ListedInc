@@ -41,7 +41,14 @@ try:
 except Exception:  # pragma: no cover
     psycopg = None
 
-IGNORED_DIRS = {".git", ".venv", "__pycache__", "data"}
+# Load .env so DATABASE_URL etc. are available
+try:
+    from dotenv import load_dotenv  # type: ignore
+    load_dotenv()
+except Exception:
+    pass
+
+IGNORED_DIRS = {".git", ".venv", "__pycache__", "data", ".ruff_cache", ".pytest_cache"}
 KEY_FILES = [
     "Makefile",
     "README.md",
@@ -52,6 +59,114 @@ KEY_FILES = [
 ]
 
 SCHEMA_CANDIDATES = ["schema.sql", "db/schema.sql"]
+
+# Tunables via env/flags
+DEFAULT_MAX_DEPTH = 3
+DEFAULT_TOPN = 10
+
+def sha1sum(p: Path, block: int = 1024 * 1024) -> str:
+    import hashlib
+    h = hashlib.sha1()
+    with p.open("rb") as f:
+        while True:
+            b = f.read(block)
+            if not b:
+                break
+            h.update(b)
+    return h.hexdigest()
+
+def count_lines(p: Path) -> int:
+    try:
+        with p.open("rb") as f:
+            return sum(1 for _ in f)
+    except Exception:
+        return 0
+
+def collect_files(root: Path) -> list[Path]:
+    out: list[Path] = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        # prune ignored dirs
+        base = os.path.basename(dirpath)
+        if base in IGNORED_DIRS:
+            dirnames[:] = []
+            continue
+        for d in list(dirnames):
+            if d in IGNORED_DIRS:
+                dirnames.remove(d)
+        for fn in filenames:
+            p = Path(dirpath) / fn
+            try:
+                if p.is_file():
+                    out.append(p)
+            except Exception:
+                pass
+    return out
+
+def per_dir_stats(root: Path, files: list[Path]) -> list[dict]:
+    buckets: dict[str, dict[str, int]] = {}
+    for p in files:
+        try:
+            rel = p.relative_to(root)
+        except Exception:
+            continue
+        top = rel.parts[0] if rel.parts else "."
+        b = buckets.setdefault(top, {"files": 0, "bytes": 0, "lines": 0})
+        b["files"] += 1
+        try:
+            st = p.stat()
+            b["bytes"] += int(st.st_size)
+            b["lines"] += count_lines(p)
+        except Exception:
+            pass
+    out = []
+    for k, v in sorted(buckets.items(), key=lambda x: (-x[1]["bytes"], x[0])):
+        out.append({"path": k, **v})
+    return out
+
+def largest_files(root: Path, files: list[Path], n: int) -> list[dict]:
+    sized: list[tuple[int, Path]] = []
+    for p in files:
+        try:
+            sized.append((int(p.stat().st_size), p))
+        except Exception:
+            continue
+    sized.sort(reverse=True, key=lambda t: t[0])
+    return [{"path": str(p.relative_to(root)), "bytes": sz, "sha1": sha1sum(p)} for sz, p in sized[:n]]
+
+def recently_modified(root: Path, files: list[Path], n: int) -> list[dict]:
+    timed: list[tuple[float, Path]] = []
+    for p in files:
+        try:
+            timed.append((p.stat().st_mtime, p))
+        except Exception:
+            continue
+    timed.sort(reverse=True, key=lambda t: t[0])
+    from datetime import datetime
+    return [{"path": str(p.relative_to(root)), "mtime": datetime.utcfromtimestamp(ts).isoformat(timespec="seconds") + "Z"} for ts, p in timed[:n]]
+
+def safe_run(cmd: list[str]) -> str:
+    try:
+        return subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode().strip()
+    except Exception:
+        return ""
+
+def python_info() -> dict:
+    try:
+        out = safe_run([sys.executable, "-m", "pip", "freeze"])[:2000]
+    except Exception:
+        out = ""
+    return {"python": sys.version.split(" ")[0], "pip_freeze": out}
+
+def redact_env(v: str) -> str:
+    # Basic redaction for URLs of the form postgresql://user:pass@host/db
+    if v.startswith("postgresql://") and "@" in v:
+        try:
+            prefix, rest = v.split("//", 1)
+            creds, tail = rest.split("@", 1)
+            return f"{prefix}//***:***@{tail}"
+        except Exception:
+            return v
+    return v
 
 
 def safe_read_text(p: Path) -> str | None:
@@ -199,7 +314,7 @@ def brew_services_info() -> dict:
     return {"ok": True, "list": lines}
 
 
-def build_snapshot(root: Path, max_depth: int, no_db: bool, show_make: bool, services: bool) -> Dict[str, Any]:
+def build_snapshot(root: Path, max_depth: int, no_db: bool, show_make: bool, services: bool, topn: int) -> Dict[str, Any]:
     name, version, deps = read_pyproject(root)
     tree = summarize_tree(root, max_depth=max_depth)
     files = {f: (root / f).exists() for f in KEY_FILES}
@@ -207,11 +322,17 @@ def build_snapshot(root: Path, max_depth: int, no_db: bool, show_make: bool, ser
     files["schema.sql"] = any((root / p).exists() for p in SCHEMA_CANDIDATES)
 
     dsn = os.getenv("DATABASE_URL")
-    db = {"ok": False, "error": "DB-test hoppar överddes"}
+    db = {"ok": False, "error": "DB-test hoppades över"}
     if not no_db and dsn:
         db = db_ping(dsn)
     elif not dsn:
         db = {"ok": False, "error": "DATABASE_URL not set"}
+
+    files_all = collect_files(root)
+    by_dir = per_dir_stats(root, files_all)
+    largest = largest_files(root, files_all, topn)
+    recent = recently_modified(root, files_all, topn)
+    pyinfo = python_info()
 
     snap = {
         "generated_at": dt.datetime.utcnow().isoformat() + "Z",
@@ -230,10 +351,15 @@ def build_snapshot(root: Path, max_depth: int, no_db: bool, show_make: bool, ser
         "tree": tree,
         "env": {
             "DATA_ROOT": os.getenv("DATA_ROOT"),
-            "DATABASE_URL": dsn,
+            "DATABASE_URL": redact_env(dsn) if dsn else None,
+            "PGSERVICE": os.getenv("PGSERVICE"),
         },
         "database": db,
         "listedinc": import_listedinc_info(),
+        "by_dir": by_dir,
+        "largest": largest,
+        "recent": recent,
+        "python_info": pyinfo,
     }
     if show_make:
         snap["make_targets"] = read_make_targets(root)
@@ -279,6 +405,15 @@ def to_markdown(snap: Dict[str, Any]) -> str:
     md.append(f"- Python executable: `{snap.get('python_path')}`")
     md.append(f"- Virtuellt miljö aktiv: `{snap.get('venv_active')}`")
 
+    pyi = snap.get("python_info", {})
+    if pyi:
+        md.append(f"- Python version: `{pyi.get('python')}`")
+        if pyi.get("pip_freeze"):
+            md.append("\n### Pip (truncated)")
+            md.append("```")
+            md.append(pyi.get("pip_freeze"))
+            md.append("```")
+
     listedinc = snap.get("listedinc", {})
     if listedinc.get("ok"):
         md.append(f"- listedinc modul: `{listedinc.get('file')}` version `{listedinc.get('version')}`")
@@ -306,6 +441,24 @@ def to_markdown(snap: Dict[str, Any]) -> str:
     for line in snap.get("tree", [])[:200]:
         md.append(f"- {line}")
 
+    md.append("\n## Per katalog (toppnivå)")
+    md.append("```")
+    for row in snap.get("by_dir", []) or []:
+        md.append(f"{row['path']}: files={row['files']}, lines={row['lines']}, bytes={row['bytes']}")
+    md.append("```")
+
+    md.append("\n## Största filer")
+    md.append("```")
+    for row in snap.get("largest", []) or []:
+        md.append(f"{row['path']} — {row['bytes']} bytes")
+    md.append("```")
+
+    md.append("\n## Senast ändrade")
+    md.append("```")
+    for row in snap.get("recent", []) or []:
+        md.append(f"{row['mtime']}  {row['path']}")
+    md.append("```")
+
     db = snap.get("database") or {}
     md.append("\n## Databas\n")
     if db.get("ok"):
@@ -329,14 +482,16 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--md", default="PROJECT_SNAPSHOT.md")
     ap.add_argument("--json", default="PROJECT_SNAPSHOT.json")
-    ap.add_argument("--max-depth", type=int, default=3)
+    ap.add_argument("--max-depth", type=int, default=DEFAULT_MAX_DEPTH)
+    ap.add_argument("--topn", type=int, default=DEFAULT_TOPN)
     ap.add_argument("--no-db", action="store_true")
     ap.add_argument("--show-make", action="store_true")
     ap.add_argument("--services", action="store_true")
     args = ap.parse_args()
 
     root = Path(__file__).resolve().parent
-    snap = build_snapshot(root, max_depth=args.max_depth, no_db=args.no_db, show_make=args.show_make, services=args.services)
+    topn = args.topn
+    snap = build_snapshot(root, max_depth=args.max_depth, no_db=args.no_db, show_make=args.show_make, services=args.services, topn=topn)
 
     md = to_markdown(snap)
     Path(args.md).write_text(md, encoding="utf-8")

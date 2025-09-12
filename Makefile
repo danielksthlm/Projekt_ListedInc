@@ -1,5 +1,9 @@
 .PHONY: env dev schema ingest ingest-list crawl snapshot scan test lint fmt lint-fix db-start db-stop db-restart db-status db-logs db-psql db-truncate-data db-help
 
+# --- Service-based DB (PG17 via libpq) ---
+SERVICE ?= local_listedinc_v17
+PSQL_SERVICE = psql "service=$(SERVICE)" -v ON_ERROR_STOP=1
+
 PY := . .venv/bin/activate && python
 PIP := . .venv/bin/activate && pip
 
@@ -13,7 +17,7 @@ dev:
 	$(PIP) install -e ".[dev]"
 
 schema:
-	psql -d listedinc -f db/schema.sql
+	$(PSQL_SERVICE) -f db/schema.sql
 
 ingest:
 	. .venv/bin/activate && PYTHONPATH=src python -m listedinc.ingest_url --url "$(URL)" $(if $(INSECURE),--insecure,) $(if $(CA_BUNDLE),--ca-bundle "$(CA_BUNDLE)",) $(if $(PDF_TO_DB),--pdf-to-db,)
@@ -42,7 +46,7 @@ lint-fix:
 # -------------------------
 # Override with: make db-start PG_SERVICE=postgresql@15
 DB ?= listedinc
-PG_SERVICE ?= postgresql@14
+PG_SERVICE ?= postgresql@17
 
 # Start PostgreSQL via Homebrew services
 db-start:
@@ -75,7 +79,7 @@ db-logs:
 
 # Öppna psql mot aktuell DB
 db-psql:
-	psql -d $(DB)
+	$(PSQL_SERVICE)
 
 # Rensa all data i projektets tabeller (destruktivt)
 db-truncate-data:
@@ -86,6 +90,14 @@ db-truncate-data:
 	else \
 	  echo "Avbrutet."; \
 	fi
+
+# Service helpers (PG17)
+psql-service: ; $(PSQL_SERVICE)
+
+db-init-service: ; $(PSQL_SERVICE) -f db/schema.sql
+
+db-clear-service:
+	@test -f db/clear_data.sql && $(PSQL_SERVICE) -f db/clear_data.sql || echo "No db/clear_data.sql, skipping"
 
 # Hjälp
 db-help:

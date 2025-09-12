@@ -1,14 +1,26 @@
 {
-  "generated_at": "2025-09-08T13:34:13.960493Z",
+  "generated_at": "2025-09-12T10:01:48.384300Z",
   "root": "/Users/danielkallberg/Documents/KLR_AI/Projekt_ListedInc",
   "python": "3.13.7",
   "python_path": "/opt/homebrew/opt/python@3.13/bin/python3.13",
   "venv_active": true,
   "platform": "macOS-15.6.1-arm64-arm-64bit-Mach-O",
   "project": {
-    "name": null,
-    "version": null,
-    "dependencies": []
+    "name": "projekt-listedinc",
+    "version": "0.1.0",
+    "dependencies": [
+      "psycopg[binary]>=3.2",
+      "httpx>=0.27",
+      "trafilatura>=1.9",
+      "beautifulsoup4>=4.12",
+      "lxml>=5.3",
+      "pdfplumber>=0.11",
+      "chardet>=5.2",
+      "python-dotenv>=1.0",
+      "pillow>=10.3",
+      "pandas>=2.2",
+      "openpyxl>=3.1"
+    ]
   },
   "key_files": {
     "Makefile": true,
@@ -21,28 +33,14 @@
   },
   "git": {
     "branch": "main",
-    "commit": "8a9ca6de59e84ef5757f983061c4e709aa932fed",
-    "short": "8a9ca6d",
-    "status": "A  .github/workflows/ci.yml\nM  Makefile\nM  PROJECT_SNAPSHOT.json\nM  PROJECT_SNAPSHOT.md\nM  README.md\nA  db/clear_data.sql\n M db/schema.sql\nAM src/listedinc/crawl_site.py\nA  src/listedinc/ingest_list.py\nMM src/listedinc/ingest_url.py"
+    "commit": "6d420a797d65830c56d999b0e9de55d322c0ce0e",
+    "short": "6d420a7",
+    "status": "M Makefile\n M PROJECT_SNAPSHOT.json\n M PROJECT_SNAPSHOT.md\n M PROJECT_SNAPSHOT.py\n M db/schema.sql\n M pyproject.toml\n M tools/run_doctor.py"
   },
   "tree": [
     ".github/",
     ".github/workflows/",
     ".github/workflows/ci.yml",
-    ".pytest_cache/",
-    ".pytest_cache/v/",
-    ".pytest_cache/v/cache/",
-    ".pytest_cache/v/cache/nodeids",
-    ".pytest_cache/.gitignore",
-    ".pytest_cache/CACHEDIR.TAG",
-    ".pytest_cache/README.md",
-    ".ruff_cache/",
-    ".ruff_cache/0.12.12/",
-    ".ruff_cache/0.12.12/11063921795872208904",
-    ".ruff_cache/0.12.12/14088327666333212286",
-    ".ruff_cache/0.12.12/5410049469217964861",
-    ".ruff_cache/.gitignore",
-    ".ruff_cache/CACHEDIR.TAG",
     "db/",
     "db/clear_data.sql",
     "db/schema.sql",
@@ -81,15 +79,218 @@
   ],
   "env": {
     "DATA_ROOT": "data",
-    "DATABASE_URL": "postgresql://localhost/listedinc"
+    "DATABASE_URL": null,
+    "PGSERVICE": null
   },
   "database": {
     "ok": false,
-    "error": "psycopg not installed"
+    "error": "DATABASE_URL not set"
   },
   "listedinc": {
     "ok": true,
     "file": "/Users/danielkallberg/Documents/KLR_AI/Projekt_ListedInc/src/listedinc/__init__.py",
     "version": "0.1.0"
+  },
+  "by_dir": [
+    {
+      "path": "src",
+      "files": 12,
+      "bytes": 56152,
+      "lines": 1319
+    },
+    {
+      "path": "PROJECT_SNAPSHOT.py",
+      "files": 1,
+      "bytes": 16489,
+      "lines": 504
+    },
+    {
+      "path": "db",
+      "files": 2,
+      "bytes": 12152,
+      "lines": 357
+    },
+    {
+      "path": ".DS_Store",
+      "files": 1,
+      "bytes": 8196,
+      "lines": 2
+    },
+    {
+      "path": "README.md",
+      "files": 1,
+      "bytes": 4850,
+      "lines": 118
+    },
+    {
+      "path": "Makefile",
+      "files": 1,
+      "bytes": 4543,
+      "lines": 122
+    },
+    {
+      "path": "PROJECT_SNAPSHOT.json",
+      "files": 1,
+      "bytes": 2567,
+      "lines": 96
+    },
+    {
+      "path": "PROJECT_SNAPSHOT.md",
+      "files": 1,
+      "bytes": 1955,
+      "lines": 97
+    },
+    {
+      "path": ".envrc",
+      "files": 1,
+      "bytes": 1633,
+      "lines": 48
+    },
+    {
+      "path": "tools",
+      "files": 1,
+      "bytes": 1158,
+      "lines": 42
+    },
+    {
+      "path": "pyproject.toml",
+      "files": 1,
+      "bytes": 801,
+      "lines": 41
+    },
+    {
+      "path": ".github",
+      "files": 1,
+      "bytes": 671,
+      "lines": 40
+    },
+    {
+      "path": ".gitignore",
+      "files": 1,
+      "bytes": 174,
+      "lines": 20
+    },
+    {
+      "path": "requirements.txt",
+      "files": 1,
+      "bytes": 124,
+      "lines": 8
+    },
+    {
+      "path": "ruff.toml",
+      "files": 1,
+      "bytes": 86,
+      "lines": 3
+    },
+    {
+      "path": "tests",
+      "files": 1,
+      "bytes": 84,
+      "lines": 3
+    },
+    {
+      "path": ".env",
+      "files": 1,
+      "bytes": 71,
+      "lines": 2
+    }
+  ],
+  "largest": [
+    {
+      "path": "src/listedinc/ingest_url.py",
+      "bytes": 22524,
+      "sha1": "30654c3c5c2d2d4eddfb914cd6c493941cd50360"
+    },
+    {
+      "path": "src/listedinc/crawl_site.py",
+      "bytes": 20281,
+      "sha1": "1a84ade8b73976300cbb328ad8b174d07788f9e4"
+    },
+    {
+      "path": "PROJECT_SNAPSHOT.py",
+      "bytes": 16489,
+      "sha1": "1653bccc22d83eae134ca45914b60900d2ef8197"
+    },
+    {
+      "path": "db/schema.sql",
+      "bytes": 11763,
+      "sha1": "e3a18284300906bead8c25eaab4d6ed4dfa2394c"
+    },
+    {
+      "path": ".DS_Store",
+      "bytes": 8196,
+      "sha1": "1654e9460d545007c601b4bd0c1000a9bd526c00"
+    },
+    {
+      "path": "src/.DS_Store",
+      "bytes": 6148,
+      "sha1": "99f0e3e6fafb7aba31d50108a9e29834fb711050"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4850,
+      "sha1": "5c65cd9163eaa768dc06ee712d27a43106bf9249"
+    },
+    {
+      "path": "Makefile",
+      "bytes": 4543,
+      "sha1": "9df26468f8737432fc0477bfd6620503b8d21b86"
+    },
+    {
+      "path": "src/listedinc/inventory_scan.py",
+      "bytes": 3561,
+      "sha1": "04e98b0902a18851bc5995a695e4c90446a03236"
+    },
+    {
+      "path": "PROJECT_SNAPSHOT.json",
+      "bytes": 2567,
+      "sha1": "054fde61e6636eac8e448a28a778304985f4019f"
+    }
+  ],
+  "recent": [
+    {
+      "path": "PROJECT_SNAPSHOT.py",
+      "mtime": "2025-09-12T10:01:43Z"
+    },
+    {
+      "path": "tools/run_doctor.py",
+      "mtime": "2025-09-12T09:56:38Z"
+    },
+    {
+      "path": "db/schema.sql",
+      "mtime": "2025-09-12T09:44:04Z"
+    },
+    {
+      "path": ".env",
+      "mtime": "2025-09-12T09:38:44Z"
+    },
+    {
+      "path": "Makefile",
+      "mtime": "2025-09-12T09:38:38Z"
+    },
+    {
+      "path": "pyproject.toml",
+      "mtime": "2025-09-12T09:35:32Z"
+    },
+    {
+      "path": "PROJECT_SNAPSHOT.json",
+      "mtime": "2025-09-12T09:26:35Z"
+    },
+    {
+      "path": "PROJECT_SNAPSHOT.md",
+      "mtime": "2025-09-12T09:26:35Z"
+    },
+    {
+      "path": "src/listedinc/ingest_url.py",
+      "mtime": "2025-09-08T19:50:44Z"
+    },
+    {
+      "path": "src/listedinc/ingest_list.py",
+      "mtime": "2025-09-08T19:45:02Z"
+    }
+  ],
+  "python_info": {
+    "python": "3.13.7",
+    "pip_freeze": "cffi==1.17.1\ncryptography==45.0.7\npackaging==24.2\npillow==11.3.0\nprojekt-listedinc==0.1.0\npybind11==3.0.1\npycparser==2.22\nwheel @ file:///opt/homebrew/Cellar/python%403.13/3.13.2/libexec/wheel-0.45.1-py3-none-any.whl#sha256=b9235939e2096903717cb6bfc132267f8a7e46deb2ec3ef9c5e234ea301795d0"
   }
 }

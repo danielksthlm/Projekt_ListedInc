@@ -221,10 +221,12 @@ CREATE TABLE IF NOT EXISTS contact_info (
   role          TEXT,
   email         TEXT,
   phone_raw     TEXT,
-  phone_digits  TEXT GENERATED ALWAYS AS (regexp_replace(COALESCE(phone_raw,'') , '\\D', '', 'g')) STORED,
+  phone_digits  TEXT GENERATED ALWAYS AS (regexp_replace(COALESCE(phone_raw,'') , '\D', '', 'g')) STORED,
+  email_norm  TEXT GENERATED ALWAYS AS (COALESCE(email, '')) STORED,
+  phone_norm  TEXT GENERATED ALWAYS AS (COALESCE(phone_digits, '')) STORED,
   source        TEXT,  -- 'html','pdf','inferred'
   created_at    TIMESTAMPTZ DEFAULT now(),
-  UNIQUE (document_id, COALESCE(email,''), COALESCE(phone_digits,''))
+  UNIQUE (document_id, email_norm, phone_norm)
 );
 
 -- Sökindex
@@ -246,7 +248,7 @@ SELECT
   (p->>'role')::TEXT      AS role,
   (p->>'email')::TEXT     AS email,
   NULL::TEXT              AS phone_raw,
-  regexp_replace(COALESCE((p->>'phone')::TEXT,''),'\\D','','g') AS phone_digits,
+  regexp_replace(COALESCE((p->>'phone')::TEXT,''),'\D','','g') AS phone_digits,
   'people'::TEXT          AS source
 FROM base b
 CROSS JOIN LATERAL jsonb_path_query(b.contacts, '$.people[*]') AS p
@@ -270,7 +272,7 @@ SELECT
   NULL::TEXT,
   NULL::TEXT,
   ph::TEXT AS phone_raw,
-  regexp_replace(COALESCE(ph::TEXT,''),'\\D','','g') AS phone_digits,
+  regexp_replace(COALESCE(ph::TEXT,''),'\D','','g') AS phone_digits,
   'phones'::TEXT
 FROM base b
 CROSS JOIN LATERAL jsonb_path_query_array(b.contacts, '$.phones') AS ph;
@@ -306,7 +308,7 @@ BEGIN
     AND d.contacts IS NOT NULL
     AND jsonb_typeof(d.contacts) = 'object'
     AND (e::TEXT) IS NOT NULL
-  ON CONFLICT (document_id, COALESCE(email,''), COALESCE(phone_digits,'')) DO NOTHING;
+  ON CONFLICT (document_id, email_norm, phone_norm) DO NOTHING;
 
   -- phones
   INSERT INTO contact_info (document_id, phone_raw, source)
@@ -317,7 +319,7 @@ BEGIN
     AND d.contacts IS NOT NULL
     AND jsonb_typeof(d.contacts) = 'object'
     AND (ph::TEXT) IS NOT NULL
-  ON CONFLICT (document_id, COALESCE(email,''), COALESCE(phone_digits,'')) DO NOTHING;
+  ON CONFLICT (document_id, email_norm, phone_norm) DO NOTHING;
 END;
 $$ LANGUAGE plpgsql;
 
